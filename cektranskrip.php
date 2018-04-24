@@ -175,7 +175,7 @@ if (isset($_GET["transrkrip"])) {
     function validateTranskrip($teks_transkrip)
     {
         // $data_transkrip = preg_split("/[\r\n]+/", $_GET["transrkrip"]);
-        $path_file = ".";
+        $path_file = "/var/www/web-ilkom/data";
         // echo count($kur_ilkom_2005)." ".count($kur_ilkom_2012)." ".count($kur_mi_2012);
         $kur_ilkom_2012_agama = ["UNI612101", "UNI612102", "UNI612103", "UNI612104", "UNI612105"];
         $kur_ilkom_2005_agama = ["MPK101", "MPK102", "MPK103", "MPK104", "MPK105"];
@@ -229,10 +229,9 @@ if (isset($_GET["transrkrip"])) {
             return 2; //Porgram Studi blm terdaftar
         }
         //print_r($kurikulum);
-        $error_code = [];
+		$error_code = [];
         if ($mhs["Jumlah SKS"] < $min_sks) {
-            //return 4; //SKS Kurang dari minimal
-            array_push($error_code, 4);
+            array_push($error_code, 4); //SKS Kurang dari minimal
         }
         $mkTidakLulus = getMKTidakLulus($mktranskrip);
         $MKWajib = getMKWajib($kurikulum);
@@ -244,13 +243,11 @@ if (isset($_GET["transrkrip"])) {
         // print_r($MKLulus);
         // print_r(array_diff($mk_agama,getKodeMK($mktranskrip) ));
         if (count($MKWajibTidakLulus) > 0) {
-            //return 5; //Ada MK Wajib yang belum lulus
-            array_push($error_code, 5);
+            array_push($error_code, 5); //Ada MK Wajib yang belum lulus
         }
         $report_data["SKS LULUS"] = getSKSLulusTranskrip($mktranskrip);
         if (getSKSLulusTranskrip($mktranskrip) < $min_sks) {
-            //return 6; //Total SKS Lulus kurang dari MIN SKS
-            array_push($error_code, 6);
+            array_push($error_code, 6); //Total SKS Lulus kurang dari MIN SKS
         }
 
         $KodeMKTranskrip = getKodeMK($mktranskrip);
@@ -265,12 +262,10 @@ if (isset($_GET["transrkrip"])) {
         $listCekMKWajibBelumDiambil = getListMK($kurikulum, $cekMKWajibBelumDiambil);
         $report_data["MK WAJIB BELUM DIAMBIL"] = $listCekMKWajibBelumDiambil;
         if (count($cekMKWajibBelumDiambil) > 0) {
-            //return 7; //Ada MK Wajib belum diambil
-            array_push($error_code, 7);
+            array_push($error_code, 7); //Ada MK Wajib belum diambil
         }
         if (count(array_diff($mk_agama, getKodeMK($mktranskrip))) > 4) {
-            //return 8; //Belum mengambil MK Agama
-            array_push($error_code, 8);
+            array_push($error_code, 8); //Belum mengambil MK Agama
         }
         if (count($error_code) > 0) {
             return $error_code;
@@ -303,7 +298,7 @@ if (isset($_GET["transrkrip"])) {
 
         return $output;
     }
-    function printValidasi($transkrip)
+     function printValidasi($transkrip)
     {
         global $report_data;
         $validate = validateTranskrip($transkrip);
