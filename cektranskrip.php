@@ -1,15 +1,16 @@
 <?php
- function loadXMLToArray($path){
+function loadXMLToArray($path)
+{
     $xmlfile = file_get_contents($path);
     $xml = simplexml_load_string($xmlfile);
-    $json  = json_encode($xml);
+    $json = json_encode($xml);
     $xmlArr = json_decode($json, true);
     return $xmlArr;
 }
-   
+
 if (isset($_GET["transrkrip"])) {
     $report_data = [];
-   
+
     class MataKuliah
     {
         private $kode;
@@ -17,6 +18,12 @@ if (isset($_GET["transrkrip"])) {
         public function __construct()
         {
             $this->kode = "";
+            $argv = func_get_args();
+            switch (func_num_args()) {
+                case 1:
+                    self::__construct1($argv[0]);
+                    break;
+            }
         }
         public function __construct1($kode)
         {
@@ -57,14 +64,21 @@ if (isset($_GET["transrkrip"])) {
         $mk = current($data);
         return $mk;
     }
-    function getListMK($kur,$array_kode){
-        $mk_list=[];
+    function getListMK($kur, $array_kode)
+    {
+        $mk_list = [];
         // print_r($array_kode);
-        
-        foreach ($array_kode as $key=>$kode){
-            $mk = getMKKur($kur,$kode);
-            // echo ($kode);
+
+        foreach ($array_kode as $key => $kode) {
+            $cur_mk = [];
+            $mk = getMKKur($kur, $kode);
+            $key = array_keys($mk);
+            for ($i = 0; $i < count($key) - 1; $i++) {
+                $cur_mk[$key[$i]] = $mk[$key[$i]];
+            }
+            array_push($mk_list, $cur_mk);
         }
+        return ($mk_list);
     }
     function getMKTidakLulus($array_transkrip)
     {
@@ -161,17 +175,14 @@ if (isset($_GET["transrkrip"])) {
     function validateTranskrip($teks_transkrip)
     {
         // $data_transkrip = preg_split("/[\r\n]+/", $_GET["transrkrip"]);
-        $path_file=".";
-        $kur_ilkom_2012 = loadXMLToArray($path_file."/kur_ilkom_2012.xml")["MATAKULIAH"];
-        $kur_ilkom_2005 = loadXMLToArray($path_file."/kur_ilkom_2005.xml")["MATAKULIAH"];
-        $kur_mi_2012    = loadXMLToArray($path_file."/kur_mi_2012.xml")["MATAKULIAH"];
-       // echo count($kur_ilkom_2005)." ".count($kur_ilkom_2012)." ".count($kur_mi_2012);
+        $path_file = ".";
+        // echo count($kur_ilkom_2005)." ".count($kur_ilkom_2012)." ".count($kur_mi_2012);
         $kur_ilkom_2012_agama = ["UNI612101", "UNI612102", "UNI612103", "UNI612104", "UNI612105"];
         $kur_ilkom_2005_agama = ["MPK101", "MPK102", "MPK103", "MPK104", "MPK105"];
         $kur_mi_2012_agama = ["UNI512101", "UNI512102", "UNI512103", "UNI612104", "UNI512105"];
-    
+
         global $report_data;
-      //  echo count($kur_ilkom_2005)." ".count($kur_ilkom_2012)." ".count($kur_mi_2012)." ".count($kur_mi_2012_agama);
+        //  echo count($kur_ilkom_2005)." ".count($kur_ilkom_2012)." ".count($kur_mi_2012)." ".count($kur_mi_2012_agama);
         $data_transkrip = preg_split("/[\r\n]+/", $teks_transkrip);
         $mhs = getMHSFromTranskrip($data_transkrip);
         $report_data["Mahasiswa"] = $mhs;
@@ -191,6 +202,7 @@ if (isset($_GET["transrkrip"])) {
         }
         if ($mhs['Prog Studi'] == 'D3 Manajemen Informatika') {
             if (substr($mhs['NPM'], 0, 2) < 16) {
+                $kur_mi_2012 = loadXMLToArray($path_file . "/kur_mi_2012.xml")["MATAKULIAH"];
                 $kurikulum = $kur_mi_2012;
                 $mk_agama = $kur_mi_2012_agama;
                 $min_sks = 115;
@@ -200,10 +212,12 @@ if (isset($_GET["transrkrip"])) {
 
         } else if ($mhs['Prog Studi'] == 'Ilmu Komputer') {
             if (substr($mhs['NPM'], 0, 2) < 12) {
+                $kur_ilkom_2005 = loadXMLToArray($path_file . "/kur_ilkom_2005.xml")["MATAKULIAH"];
                 $kurikulum = $kur_ilkom_2005;
                 $mk_agama = $kur_ilkom_2005_agama;
                 $min_sks = 144;
             } else if (substr($mhs['NPM'], 0, 2) < 16) {
+                $kur_ilkom_2012 = loadXMLToArray($path_file . "/kur_ilkom_2012.xml")["MATAKULIAH"];
                 $kurikulum = $kur_ilkom_2012;
                 $mk_agama = $kur_ilkom_2012_agama;
                 $min_sks = 144;
@@ -215,28 +229,32 @@ if (isset($_GET["transrkrip"])) {
             return 2; //Porgram Studi blm terdaftar
         }
         //print_r($kurikulum);
+        $error_code = [];
         if ($mhs["Jumlah SKS"] < $min_sks) {
-            return 4; //SKS Kurang dari minimal
+            //return 4; //SKS Kurang dari minimal
+            array_push($error_code, 4);
         }
         $mkTidakLulus = getMKTidakLulus($mktranskrip);
         $MKWajib = getMKWajib($kurikulum);
         $MKWajibTidakLulus = array_intersect(getKodeMK($mkTidakLulus), getKodeMK($MKWajib));
         //print_r(getKodeMK($mktranskrip));
-        getListMK($kurikulum,$MKWajibTidakLulus);
-        $report_data["MK Wajib Tidak Lulus"] = $MKWajibTidakLulus;
+        $listMKWajibTidakLulus = getListMK($kurikulum, $MKWajibTidakLulus);
+        $report_data["MK Wajib Belum Lulus"] = $listMKWajibTidakLulus;
         $MKLulus = array_diff(getKodeMK($mktranskrip), getKodeMK($mkTidakLulus));
         // print_r($MKLulus);
         // print_r(array_diff($mk_agama,getKodeMK($mktranskrip) ));
         if (count($MKWajibTidakLulus) > 0) {
-            return 5; //Ada MK Wajib yang belum lulus
+            //return 5; //Ada MK Wajib yang belum lulus
+            array_push($error_code, 5);
         }
         $report_data["SKS LULUS"] = getSKSLulusTranskrip($mktranskrip);
         if (getSKSLulusTranskrip($mktranskrip) < $min_sks) {
-            return 6; //Total SKS Lulus kurang dari MIN SKS
+            //return 6; //Total SKS Lulus kurang dari MIN SKS
+            array_push($error_code, 6);
         }
 
         $KodeMKTranskrip = getKodeMK($mktranskrip);
-        $KodeMKWajib = getKodeMK($kurikulum);
+        $KodeMKWajib = getKodeMK($MKWajib);
         // print_r($KodeMKTranskrip);
         // echo "<hr>";
         // print_r($KodeMKWajib);
@@ -244,13 +262,20 @@ if (isset($_GET["transrkrip"])) {
 
         $cekMKWajibBelumDiambil = array_diff($cekMKWajib, $mk_agama);
         //print_r($cekMKWajibBelumDiambil);
-        $report_data["MK WAJIB BELUM DIAMBIL"] = $cekMKWajibBelumDiambil;
+        $listCekMKWajibBelumDiambil = getListMK($kurikulum, $cekMKWajibBelumDiambil);
+        $report_data["MK WAJIB BELUM DIAMBIL"] = $listCekMKWajibBelumDiambil;
         if (count($cekMKWajibBelumDiambil) > 0) {
-            return 7; //Ada MK Wajib belum diambil
+            //return 7; //Ada MK Wajib belum diambil
+            array_push($error_code, 7);
         }
         if (count(array_diff($mk_agama, getKodeMK($mktranskrip))) > 4) {
-            return 8; //Belum mengambil MK Agama
+            //return 8; //Belum mengambil MK Agama
+            array_push($error_code, 8);
         }
+        if (count($error_code) > 0) {
+            return $error_code;
+        }
+
         return 0;
     }
     function makeList($array)
@@ -258,17 +283,21 @@ if (isset($_GET["transrkrip"])) {
 
         //Base case: an empty array produces no list
         if (empty($array)) {
-            return '';
+            return ' : <b>Tidak Ada</b>';
         }
 
         //Recursive Step: make a list with child lists
         $output = '<ul>';
         if (is_array($array)) {
             foreach ($array as $key => $subArray) {
+                if (is_numeric($key)) {
+                    $key++;
+                }
+
                 $output .= '<li>' . $key . makeList($subArray) . '</li>';
             }
         } else {
-            $output .= '<li>' . $array . '</li>';
+            $output .= '<b>' . $array . '</b>';
         }
         $output .= '</ul>';
 
@@ -277,36 +306,41 @@ if (isset($_GET["transrkrip"])) {
     function printValidasi($transkrip)
     {
         global $report_data;
-        switch (validateTranskrip($transkrip)) {
-            case 0:
-                echo "TRANSKRIP NILAI OK, TIDAK ADA MASALAH";
-                break;
-            case 1:
-                echo "Format teks transkrip tidak sesuai";
-                break;
-            case 2:
-                echo "Program Studi Belum Terdaftar";
-                break;
-            case 3:
-                echo "Tidak ada data kurikulum yang sesuai dengan mahasiswa";
-                break;
-            case 4:
-                echo "SKS Kurang dari minimal";
-                break;
-            case 5:
-                echo "Ada MK Wajib yang belum lulus";
-                break;
-            case 6:
-                echo "Total SKS Lulus kurang dari MIN SKS";
-                break;
-            case 7:
-                echo "Ada MK Wajib belum diambil";
-                break;
-            case 8:
-                echo "Belum mengambil MK Agama";
-                break;
+        $validate = validateTranskrip($transkrip);
+        if (is_int($validate)) {
+            switch ($validate) {
+                case 0:
+                    echo '[box type="info" align="aligncenter" class="" width=""]TRANSKRIP NILAI OK, TIDAK ADA MASALAH[/box]';
+                    break;
+                case 1:
+                    echo '[box type="error" align="aligncenter" class="" width=""]Format teks transkrip tidak sesuai[/box]';
+                    break;
+                case 2:
+                    echo '[box type="error" align="aligncenter" class="" width=""]Program Studi Belum Terdaftar[/box]';
+                    break;
+                case 3:
+                    echo '[box type="error" align="aligncenter" class="" width=""]Tidak ada data kurikulum yang sesuai dengan mahasiswa[/box]';
+                    break;
+            }
+        } else if (is_array($validate)) {
+            $errormsg = array(
+                4 => "SKS Kurang dari minimal",
+                5 => "Ada MK Wajib yang belum lulus",
+                6 => "Total SKS Lulus kurang dari MIN SKS",
+                7 => "Ada MK Wajib belum diambil",
+                8 => "Belum mengambil MK Agama",
+            );
+            $msg = '[box type="warning" align="aligncenter" class="" width=""]<ul>';
+            foreach ($validate as $key => $val) {
+                $msg .= '<li>' . $errormsg[$val] . '</li>';
+            }
+            $msg .= '</ul>[/box]';
+            echo $msg;
         }
+
+        echo '[toggle title="Klik untuk Melihat Informasi Rinci Transkrip Anda" state="close"]';
         echo makeList($report_data);
+        echo '[/toggle]';
     }
     printValidasi($_GET["transrkrip"]);
 
@@ -324,6 +358,6 @@ if (isset($_GET["transrkrip"])) {
 <form method="get">
 <input type="hidden" name="page_id" value="<?php echo $_GET["page_id"]; ?>">
 <label> Input Text Transkrip </label>
-<textarea rows="15" cols="100" name="transrkrip"><?php echo isset($_GET["transrkrip"]) ? $_GET["transrkrip"] : ""; ?></textarea>
+<textarea rows="15" cols="100" name="transrkrip"></textarea>
 <input type="submit" value="Submit" name="submit">
 </form>
